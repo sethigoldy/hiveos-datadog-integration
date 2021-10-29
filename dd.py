@@ -17,7 +17,7 @@ def send_metrics(key,value):
     # Submit a single point with a timestamp of `now`
     if type(value) != str:
         print("sending %s key and %s value" % (key, value))
-        api.Metric.send(metric='hive.%s'% key, points=value, type="gauge")
+        api.Metric.send(metric=key, points=value, type="gauge")
 
 # # Submit a point with a timestamp (must be current)
 # api.Metric.send(metric='my.pair', points=(now, 15))

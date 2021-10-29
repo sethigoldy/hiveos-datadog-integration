@@ -4,8 +4,8 @@ import email
 from email.header import decode_header
 import traceback
 
-username = os.getenv('email')
-password = os.getenv('password')
+USERNAME = os.getenv('email')
+PASSWORD = os.getenv('password')
 
 def get_otp():
     try:
@@ -13,7 +13,7 @@ def get_otp():
         # create an IMAP4 class with SSL
         imap = imaplib.IMAP4_SSL("imap.gmail.com")
         # authenticate
-        imap.login(username, password)
+        imap.login(USERNAME, PASSWORD)
 
         status, messages = imap.select("Inbox")
         # number of top emails to fetch

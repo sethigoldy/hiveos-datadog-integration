@@ -13,6 +13,12 @@ app = Flask(__name__)
 cache = Cache(config={'CACHE_TYPE': 'SimpleCache'})
 cache.init_app(app)
 
+MINE_POOL=os.getenv("mine_pool_url")
+HIVE_EMAIL=os.getenv('hive_email')
+HIVE_PASSWORD=os.getenv("hive_password")
+HOST_ENV=os.getenv("host")
+TTL=os.getenv("ttl")
+
 s = sched.scheduler(time.time, time.sleep)
 
 api_endpoint = "https://api2.hiveos.farm/api/v2/"
@@ -23,6 +29,11 @@ headers = {
 }
 
 
+@app.route("/")
+def index():
+    return "Hello World!"
+
+
 def get_otp_hive(retry = 0):
     current_otp = 0
     try:
@@ -30,7 +41,7 @@ def get_otp_hive(retry = 0):
         response = requests.post(api_endpoint+get_otp_ep,
             headers=headers,
             data=json.dumps({
-                "login":os.getenv('hive_email')
+                "login":HIVE_EMAIL
             })
         )
         if response.status_code == 200:
@@ -59,8 +70,8 @@ def auth_hive():
         response = requests.post(api_endpoint + auth_api_url,
             headers=headers,
             data=json.dumps({
-                "login": os.getenv("hive_email"),
-                "password": os.getenv("hive_password"),
+                "login": HIVE_EMAIL,
+                "password": HIVE_PASSWORD,
                 "twofa_code": str(otp),
                 "remember": True
             })
@@ -75,24 +86,9 @@ def auth_hive():
     return ""
 
 
-def get_farm_data(sc):
-    bearer_token = auth_hive()
-    auth_header = {
-        "Authorization": "Bearer %s" % bearer_token,
-        'Host': os.getenv("host")
-    }
-    response = requests.get(api_endpoint+"farms", headers={**auth_header, **headers})
-    if response.status_code == 200:
-        farms_data = response.json()
-        # from pprint import pprint; pprint(farms_data)
-        farms_data = farms_data.get("data")
-        for farm in farms_data :
-            send_metrics_chain(farm)
-        print("Round completed with DD")
-    s.enter(300, 1, get_farm_data, (sc,))
-
-
 def send_metrics_chain(data, key=""):
+    if data is None:
+        return
     if type(data) is list:
         for k,metric in enumerate(data):
             n_key = "%s.%s" % (key,str(k)) if key else str(k)
@@ -105,15 +101,51 @@ def send_metrics_chain(data, key=""):
         dd.send_metrics(key,data)
 
 
-@app.route("/")
-def index():
-    return "Hello World!"
+def get_farm_data():
+    bearer_token = auth_hive()
+    auth_header = {
+        "Authorization": "Bearer %s" % bearer_token,
+        'Host': HOST_ENV
+    }
+    response = requests.get(api_endpoint+"farms", headers={**auth_header, **headers})
+    if response.status_code == 200:
+        farms_data = response.json()
+        # from pprint import pprint; pprint(farms_data)
+        farms_data = farms_data.get("data")
+        for farm in farms_data :
+            send_metrics_chain(farm, key="hive")
+        print("Round completed with DD")
+
+
+def send_mining_wallet():
+    if MINE_POOL:
+        extra_headers = {
+            "host": HOST_ENV,
+        }
+        response = requests.get(MINE_POOL,headers={**headers, **extra_headers})
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("rewards",None):
+                del data["rewards"]
+            if data.get("sumrewards",None):
+                del data["sumrewards"]
+            print("Sending mining metrics to DD")
+            send_metrics_chain(data, key="pool")
 
 
 def start_metrics():
-    print("Monitoring start...")
-    get_farm_data(s)
-    s.enter(300, 1, get_farm_data, (s,))
+    if not (HIVE_EMAIL and HIVE_PASSWORD and os.getenv('email') 
+            and os.getenv('password') and os.getenv("dd_key") and TTL):
+        print("Please set all environment variables before starting.")
+        exit(1)
+    try: 
+        print("Monitoring start...")
+        send_mining_wallet()
+        get_farm_data()
+    except Exception as ex:
+        print(ex)
+        print("Unable to fetch data!!!")
+    s.enter(int(TTL), 1, start_metrics, (s,))
     s.run()
 
 
