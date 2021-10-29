@@ -18,6 +18,7 @@ HIVE_EMAIL=os.getenv('hive_email')
 HIVE_PASSWORD=os.getenv("hive_password")
 HOST_ENV=os.getenv("host")
 TTL=os.getenv("ttl")
+NOMICS_EXCHANGE_KEY=os.getenv("nomics_exchange_key")
 
 s = sched.scheduler(time.time, time.sleep)
 
@@ -133,6 +134,24 @@ def send_mining_wallet():
             send_metrics_chain(data, key="pool")
 
 
+def fetch_latest_price():
+    if NOMICS_EXCHANGE_KEY:
+        try:
+            url = "https://api.nomics.com/v1/exchange-rates?key=%s" % NOMICS_EXCHANGE_KEY
+            response= requests.get(url,
+                headers= {**headers, **{
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
+            }})
+            if response.status_code == 200:
+                data = response.json()
+                for cur in data:
+                    if cur.get("currency") and cur.get("rate"):
+                        dd.send_metrics("nomics."+cur.get("currency"),cur.get("rate"))
+            print("Got %s while trying to access %s" % (response.status_code, url))
+        except Exception as ex:
+            print("Please check exchange API url or response dot key notation", ex)
+
+
 def start_metrics():
     if not (HIVE_EMAIL and HIVE_PASSWORD and os.getenv('email') 
             and os.getenv('password') and os.getenv("dd_key") and TTL):
@@ -140,6 +159,7 @@ def start_metrics():
         exit(1)
     try: 
         print("Monitoring start...")
+        fetch_latest_price()
         send_mining_wallet()
         get_farm_data()
     except Exception as ex:

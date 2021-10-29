@@ -15,6 +15,10 @@ future_10s = now + 10
 
 def send_metrics(key,value):
     # Submit a single point with a timestamp of `now`
+    try:
+        value=float(value)
+    except Exception as ex:
+        return
     if type(value) != str:
         print("sending %s key and %s value" % (key, value))
         api.Metric.send(metric=key, points=value, type="gauge")
