@@ -21,7 +21,13 @@ pip install -r requirements.txt
 python hiveos.py
 ```
 
+### Nomics API
+
 Integrated https://nomics.com/ API in the application to use just set `nomics_exchange_key` in environment to use, the result will be sent to DD with `nomics.*` metrics
+
+### freecurrencyapi.net API
+
+Integrated https://freecurrencyapi.net/ API in the application to use just set `currency_api_key` and `fiat` i.e. INR or EUR etc in environment to use, the result will be sent to DD with `fiat.*` metrics for example INR - `fiat.INR`
 
 If you found any issues please raise them in Github, I will try my best to resolve them. Cheers!!!!  
 

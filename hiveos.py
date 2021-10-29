@@ -19,6 +19,7 @@ HIVE_PASSWORD=os.getenv("hive_password")
 HOST_ENV=os.getenv("host")
 TTL=os.getenv("ttl")
 NOMICS_EXCHANGE_KEY=os.getenv("nomics_exchange_key")
+CURRENCY_API_KEY=os.getenv("currency_api_key")
 
 s = sched.scheduler(time.time, time.sleep)
 
@@ -149,8 +150,26 @@ def fetch_latest_price():
                         dd.send_metrics("nomics."+cur.get("currency"),cur.get("rate"))
             print("Got %s while trying to access %s" % (response.status_code, url))
         except Exception as ex:
-            print("Please check exchange API url or response dot key notation", ex)
+            print("Please check exchange API url or NOMICS_EXCHANGE_KEY", ex)
 
+
+def fetch_fiat_val_base_usd(fiat="INR"):
+    if CURRENCY_API_KEY:
+        try:
+            url = "https://freecurrencyapi.net/api/v2/latest?apikey="+CURRENCY_API_KEY
+            response= requests.get(url,
+                headers= {**headers, **{
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
+            }})
+            if response.status_code == 200:
+                data = response.json()
+                cur = data.get("data",{})
+                if cur.get(fiat):
+                    dd.send_metrics("fiat."+fiat,cur.get(fiat))
+            print("Got %s while trying to access %s" % (response.status_code, url))
+        except Exception as ex:
+            print("Please check freecurrencyapi.net API url or CURRENCY_API_KEY", ex)
+    
 
 def start_metrics():
     if not (HIVE_EMAIL and HIVE_PASSWORD and os.getenv('email') 
@@ -159,6 +178,7 @@ def start_metrics():
         exit(1)
     try: 
         print("Monitoring start...")
+        fetch_fiat_val_base_usd()
         fetch_latest_price()
         send_mining_wallet()
         get_farm_data()
