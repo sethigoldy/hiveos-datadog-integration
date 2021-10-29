@@ -149,5 +149,5 @@ def start_metrics():
     s.run()
 
 
-if __name__ == "__main__":
-    start_metrics()
+start_metrics()
+

@@ -1,5 +1,4 @@
-from hiveos import app, start_metrics
+from hiveos import app
 
 if __name__ == "__main__":
     app.run()
-    start_metrics()
