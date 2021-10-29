@@ -3,9 +3,9 @@ import time
 import os
 
 options = {
-    'api_key': os.getenv("dd_key")
+    'api_key': os.getenv("dd_key"),
     ## EU costumers need to define 'api_host' as below
-    #'api_host': 'https://api.datadoghq.eu/'
+    'api_host': 'https://api.datadoghq.eu/'
 }
 
 initialize(**options)
@@ -15,7 +15,9 @@ future_10s = now + 10
 
 def send_metrics(key,value):
     # Submit a single point with a timestamp of `now`
-    api.Metric.send(metric='hive.%s'% key, points=value)
+    if type(value) != str:
+        print("sending %s key and %s value" % (key, value))
+        api.Metric.send(metric='hive.%s'% key, points=value, type="count")
 
 # # Submit a point with a timestamp (must be current)
 # api.Metric.send(metric='my.pair', points=(now, 15))
