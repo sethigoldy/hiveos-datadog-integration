@@ -37,6 +37,7 @@ def index():
 
 
 def get_otp_hive(retry = 0):
+    print("Getting otp from HiveOS")
     current_otp = 0
     try:
         get_otp_ep = "auth/login/confirmation"
@@ -46,23 +47,30 @@ def get_otp_hive(retry = 0):
                 "login":HIVE_EMAIL
             })
         )
+        print("Sent otp request, waiting for 10 seconds before reading email")
         time.sleep(10)
         if response.status_code == 200:
             otps = gmail.get_otp()
+            print("Got these otps from gmail %s" % otps)
             if len(otps) >= 1:
                 current_otp = otps[0]
                 return current_otp
         if current_otp == 0 and retry <= 1:
+            print("OTP not found, retrying again")
             return get_otp_hive(retry=retry+1)
     except Exception as ex:
         if retry <= 1:
             return get_otp_hive(retry = retry+1)
+    print("Even after retrying unable to get OTP.")
     return current_otp
 
 
 def auth_hive():
+    print("Checking for hive auth token cache")
     if cache.get("hive_auth_token"):
+        print("Found Hive auth token cache, returning")
         return cache.get("hive_auth_token")
+    print("Hive auth token cache not found")
     otp = get_otp_hive()
     auth_api_url = "auth/login"
     if otp > 0:
@@ -81,6 +89,7 @@ def auth_hive():
             data = response.json()
             if data.get("access_token", None):
                 cache.set("hive_auth_token",data.get("access_token"), timeout=data.get("expires_in"))
+                print("Got access_token from Hive caching it for future use")
                 return data.get("access_token")
     print("Unable to get bearer token from hive api")
     return ""
@@ -181,6 +190,7 @@ def start_metrics(s):
         fetch_fiat_val_base_usd()
         fetch_latest_price()
         send_mining_wallet()
+        print("Calling, get_farm_data()")
         get_farm_data()
     except Exception as ex:
         print(traceback.format_exc())
