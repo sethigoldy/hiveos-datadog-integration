@@ -4,9 +4,9 @@ import time
 import json
 import gmail
 import requests
-from requests import api
+import traceback
 import sched, time
-from flask import Flask, request
+from flask import Flask
 from flask_caching import Cache
 
 app = Flask(__name__)
@@ -46,14 +46,12 @@ def get_otp_hive(retry = 0):
                 "login":HIVE_EMAIL
             })
         )
+        time.sleep(10)
         if response.status_code == 200:
-            time.sleep(5)
             otps = gmail.get_otp()
             if len(otps) >= 1:
                 current_otp = otps[0]
-                print(current_otp)
                 return current_otp
-        print("Unable to get otp from email")
         if current_otp == 0 and retry <= 1:
             return get_otp_hive(retry=retry+1)
     except Exception as ex:
@@ -148,7 +146,8 @@ def fetch_latest_price():
                 for cur in data:
                     if cur.get("currency") and cur.get("rate"):
                         dd.send_metrics("nomics."+cur.get("currency"),cur.get("rate"))
-            print("Got %s while trying to access %s" % (response.status_code, url))
+            else:
+                print("Got %s while trying to access %s" % (response.status_code, url))
         except Exception as ex:
             print("Please check exchange API url or NOMICS_EXCHANGE_KEY", ex)
 
@@ -166,12 +165,13 @@ def fetch_fiat_val_base_usd(fiat="INR"):
                 cur = data.get("data",{})
                 if cur.get(fiat):
                     dd.send_metrics("fiat."+fiat,cur.get(fiat))
-            print("Got %s while trying to access %s" % (response.status_code, url))
+            else:
+                print("Got %s while trying to access %s" % (response.status_code, url))
         except Exception as ex:
             print("Please check freecurrencyapi.net API url or CURRENCY_API_KEY", ex)
     
 
-def start_metrics():
+def start_metrics(s):
     if not (HIVE_EMAIL and HIVE_PASSWORD and os.getenv('email') 
             and os.getenv('password') and os.getenv("dd_key") and TTL):
         print("Please set all environment variables before starting.")
@@ -183,10 +183,10 @@ def start_metrics():
         send_mining_wallet()
         get_farm_data()
     except Exception as ex:
-        print(ex)
+        print(traceback.format_exc())
         print("Unable to fetch data!!!")
     s.enter(int(TTL), 1, start_metrics, (s,))
     s.run()
 
 
-start_metrics()
+start_metrics(s)
